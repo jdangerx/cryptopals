@@ -1,4 +1,4 @@
-module Set1 where
+module Main where
 
 import qualified Data.Bits as B
 import Data.Char (chr, ord)
@@ -32,17 +32,53 @@ testHexToB64 =
   == "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
 
 -- Challenge 2: fixed length XOR
-hexToInts :: Char -> Int
-hexToInts = fst . head . readHex . (:[])
+hexToInt :: Char -> Int
+-- hexToInt = fst . head . readHex . (:[])
+hexToInt '0' = 0
+hexToInt '1' = 1
+hexToInt '2' = 2
+hexToInt '3' = 3
+hexToInt '4' = 4
+hexToInt '5' = 5
+hexToInt '6' = 6
+hexToInt '7' = 7
+hexToInt '8' = 8
+hexToInt '9' = 9
+hexToInt 'a' = 10
+hexToInt 'b' = 11
+hexToInt 'c' = 12
+hexToInt 'd' = 13
+hexToInt 'e' = 14
+hexToInt 'f' = 15
+
+intToHex :: Int -> Char
+-- intToHex = fst . head . readHex . (:[])
+intToHex 0 = '0'
+intToHex 1 = '1'
+intToHex 2 = '2'
+intToHex 3 = '3'
+intToHex 4 = '4'
+intToHex 5 = '5'
+intToHex 6 = '6'
+intToHex 7 = '7'
+intToHex 8 = '8'
+intToHex 9 = '9'
+intToHex 10 = 'a'
+intToHex 11 = 'b'
+intToHex 12 = 'c'
+intToHex 13 = 'd'
+intToHex 14 = 'e'
+intToHex 15 = 'f'
+
 
 fixedXor :: String -> String -> String
 fixedXor a b =
   let
-    aInts = map hexToInts a
-    bInts = map hexToInts b
+    aInts = map hexToInt a
+    bInts = map hexToInt b
     xorInts = zipWith B.xor aInts bInts
   in
-    concatMap (`showHex` "")  xorInts
+    map intToHex xorInts
 
 xorA = "1c0111001f010100061a024b53535009181c"
 xorB = "686974207468652062756c6c277320657965"
@@ -66,7 +102,9 @@ score :: String -> Int
 score s = sum . mapMaybe (`M.lookup` letters) $ s
 
 hexToChars :: String -> String
-hexToChars (a:b:bs) = (chr . fst . head . readHex $ [a,b]) : hexToChars bs
+hexToChars (a:b:bs) =
+  let int = hexToInt a * 16 + hexToInt b
+  in chr int : hexToChars bs
 hexToChars _ = []
 
 sbXorCipher :: String -> [(String, Char)]
@@ -77,6 +115,7 @@ sbXorCipher s =
 sbXorCipher_ :: String -> String
 sbXorCipher_ s =
   last . sortOn score $ hexToChars . byteXor s <$> [0..255]
+-- drops the key info.
 
 testSbXorCipher :: Bool
 testSbXorCipher =
@@ -85,7 +124,8 @@ testSbXorCipher =
 
 -- Challenge 4: detect 1-byte XOR cipher
 detectXor :: [String] -> String
-detectXor ss = fst . last . sortOn (score . fst) . concatMap sbXorCipher $ ss
+-- detectXor ss = fst . last . sortOn (score . fst) . concatMap sbXorCipher $ ss
+detectXor ss = last . sortOn score . map sbXorCipher_ $ ss
 
 testDetectXor :: IO Bool
 testDetectXor =
