@@ -1,8 +1,10 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import qualified Data.Bits as B
-import Data.Char (chr, ord)
-import Data.Function (on)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
+import Data.Char (chr, ord, intToDigit, digitToInt)
 import Data.List (sortOn)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
@@ -32,53 +34,15 @@ testHexToB64 =
   == "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
 
 -- Challenge 2: fixed length XOR
-hexToInt :: Char -> Int
--- hexToInt = fst . head . readHex . (:[])
-hexToInt '0' = 0
-hexToInt '1' = 1
-hexToInt '2' = 2
-hexToInt '3' = 3
-hexToInt '4' = 4
-hexToInt '5' = 5
-hexToInt '6' = 6
-hexToInt '7' = 7
-hexToInt '8' = 8
-hexToInt '9' = 9
-hexToInt 'a' = 10
-hexToInt 'b' = 11
-hexToInt 'c' = 12
-hexToInt 'd' = 13
-hexToInt 'e' = 14
-hexToInt 'f' = 15
-
-intToHex :: Int -> Char
--- intToHex = fst . head . readHex . (:[])
-intToHex 0 = '0'
-intToHex 1 = '1'
-intToHex 2 = '2'
-intToHex 3 = '3'
-intToHex 4 = '4'
-intToHex 5 = '5'
-intToHex 6 = '6'
-intToHex 7 = '7'
-intToHex 8 = '8'
-intToHex 9 = '9'
-intToHex 10 = 'a'
-intToHex 11 = 'b'
-intToHex 12 = 'c'
-intToHex 13 = 'd'
-intToHex 14 = 'e'
-intToHex 15 = 'f'
-
 
 fixedXor :: String -> String -> String
 fixedXor a b =
   let
-    aInts = map hexToInt a
-    bInts = map hexToInt b
+    aInts = map digitToInt a
+    bInts = map digitToInt b
     xorInts = zipWith B.xor aInts bInts
   in
-    map intToHex xorInts
+    map intToDigit xorInts
 
 xorA = "1c0111001f010100061a024b53535009181c"
 xorB = "686974207468652062756c6c277320657965"
@@ -103,7 +67,7 @@ score s = sum . mapMaybe (`M.lookup` letters) $ s
 
 hexToChars :: String -> String
 hexToChars (a:b:bs) =
-  let int = hexToInt a * 16 + hexToInt b
+  let int = digitToInt a * 16 + digitToInt b
   in chr int : hexToChars bs
 hexToChars _ = []
 
@@ -134,4 +98,60 @@ testDetectXor =
     let result = detectXor . lines $ inp
     return $ result == "Now that the party is jumping\n"
 
+stringToHex :: String -> String
+stringToHex = foldr (\c hex -> intToDigit (ord c `div` 16) : intToDigit (ord c `mod` 16) : hex) ""
+
+-- Challenge 5: repeating XOR cipher
+bytesXor :: String -> String -> String
+bytesXor s k =
+  let
+    kHex = stringToHex k
+    sHex = stringToHex s
+  in
+   fixedXor sHex $ concat . replicate (length s `div` length k + 1) $ kHex
+
+iceLines :: String
+iceLines = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal" 
+
+testBytesXor :: Bool
+testBytesXor =
+  bytesXor
+  iceLines "ICE" ==
+  "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
+
+-- Challenge 6: Break repeating key XOR
+
+stringEditDistance :: BS.ByteString -> BS.ByteString -> Int
+stringEditDistance bs bs' = sum (BS.zipWith (\w w' -> B.popCount (w `B.xor` w')) bs bs')
+
+testStringEditDistance :: Bool
+testStringEditDistance = stringEditDistance "this is a test" "wokka wokka!!!" == 37
+
+getKeySize :: (Int, Int) -> BS.ByteString -> Int
+getKeySize (low, high) bs =
+  let
+    editDists = (`testKeySize` bs) <$> [low..high]
+  in fst . head . sortOn snd $ editDists
+
+testKeySize :: Int -> BS.ByteString -> (Int, Double)
+testKeySize n bs =
+  let fstBlock = BS.take n bs
+      sndBlock = BS.take n . BS.drop n $ bs
+      thirdBlock = BS.take n . BS.drop n . BS.drop n $ bs
+      fourthBlock = BS.take n . BS.drop n . BS.drop n . BS.drop n $ bs
+      dist12 = fromIntegral $ stringEditDistance fstBlock sndBlock
+      dist23 = fromIntegral $ stringEditDistance sndBlock thirdBlock
+      dist34 = fromIntegral $ stringEditDistance thirdBlock fourthBlock
+      dist = (dist12 + dist23 + dist34) / 3.0
+  in
+   (n, dist / fromInteger (fromIntegral n))
+
+testGetKeySize :: Int
+testGetKeySize =
+  getKeySize (2, 40) (BSC.pack (hexToChars $ bytesXor iceIceBabyFull "BBC")) -- == 3
+
+iceIceBabyFull :: String
+iceIceBabyFull = "Yo, VIP, let's kick it!\n\nIce ice baby\nIce ice baby\nAll right stop\nCollaborate and listen\nIce is back with my brand new invention\nSomething grabs a hold of me tightly\nThen I flow that a harpoon daily and nightly\nWill it ever stop?\nYo, I don't know\nTurn off the lights and I'll glow\nTo the extreme I rock a mic like a vandal\nLight up a stage and wax a chump like a candle\n\nDance\nBum rush the speaker that booms\nI'm killin' your brain like a poisonous mushroom\nDeadly, when I play a dope melody\nAnything less that the best is a felony\nLove it or leave it\nYou better gain way\nYou better hit bull's eye\nThe kid don't play\nIf there was a problem\nYo, I'll solve it\nCheck out the hook while my DJ revolves it\n\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\n\nNow that the party is jumping\nWith the bass kicked in, the fingers are pumpin'\nQuick to the point, to the point no faking\nI'm cooking MC's like a pound of bacon\nBurning them if they're not quick and nimble\nI go crazy when I hear a cymbal\nAnd a hi hat with a souped up tempo\nI'm on a roll and it's time to go solo\nRollin in my 5.0\nWith my ragtop down so my hair can blow\nThe girlies on standby\nWaving just to say hi\nDid you stop?\nNo, I just drove by\nKept on pursuing to the next stop\nI busted a left and I'm heading to the next block\nThat block was dead\n\nYo so I continued to a1a Beachfront Ave\nGirls were hot wearing less than bikinis\nRock man lovers driving Lamborghini\nJealous 'cause I'm out getting mine\nShay with a gauge and Vanilla with a nine\nReady for the chumps on the wall\nThe chumps are acting ill because they're so full of eight balls\nGunshots ranged out like a bell\nI grabbed my nine\nAll I heard were shells\nFallin' on the concrete real fast\nJumped in my car, slammed on the gas\nBumper to bumper the avenue's packed\nI'm tryin' to get away before the jackers jack\nPolice on the scene\nYou know what I mean\nThey passed me up, confronted all the dope fiends\nIf there was a problem\nYo, I'll solve it\nCheck out the hook while my DJ revolves it\n\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\n\nTake heed, 'cause I'm a lyrical poet\nMiami's on the scene just in case you didn't know it\nMy town, that created all the bass sound\nEnough to shake and kick holes in the ground\n'Cause my style's like a chemical spill\nFeasible rhymes that you can vision and feel\nConducted and formed\nThis is a hell of a concept\nWe make it hype and you want to step with this\nShay plays on the fade, slice it like a ninja\nCut like a razor blade so fast\nOther DJ's say, 'damn'\nIf my rhyme was a drug\nI'd sell it by the gram\nKeep my composure when it's time to get loose\nMagnetized by the mic while I kick my juice\nIf there was a problem\nYo, I'll solve it!\nCheck out the hook while my DJ revolves it\n\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\n\nYo man, let's get out of here\nWord to your mother\n\nIce ice baby\nToo cold\nIce ice baby\nToo cold too cold\nIce ice baby\nToo cold too cold\nIce ice baby\nToo cold too cold\n"
+
+main :: IO ()
 main = testDetectXor >>= print
