@@ -127,7 +127,7 @@ testDetectXor =
 -- Challenge 5: repeating XOR cipher
 
 iceLines :: Bytes
-iceLines = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal" 
+iceLines = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
 
 testBytesXor :: Bool
 testBytesXor =
@@ -143,28 +143,26 @@ stringEditDistance bs bs' =
 testStringEditDistance :: Bool
 testStringEditDistance = stringEditDistance "this is a test" "wokka wokka!!!" == 37
 
-getKeySize :: (Int, Int) -> Bytes -> [(Int, Double)] -- input should be ciphertext in bytes, not hex digits or b64.
-getKeySize (low, high) bs =
+getPossibleKeySizes :: (Int, Int) -> Bytes -> [(Int, Double)] -- input should be ciphertext in bytes, not hex digits or b64.
+getPossibleKeySizes (low, high) bs =
   let
     editDists = (`tryKeySize` bs) <$> [low..high]
-  in sortOn snd $ editDists
+  in sortOn snd editDists
+
+-- rightShift :: Bytes -> Int -> Bytes
+-- rightShift bs n = BS.append (BS.drop n bs)
 
 tryKeySize :: Int -> BS.ByteString -> (Int, Double)
 tryKeySize n bs =
-  let fstBlock = BS.take n bs
-      sndBlock = BS.take n . BS.drop n $ bs
-      thirdBlock = BS.take n . BS.drop n . BS.drop n $ bs
-      fourthBlock = BS.take n . BS.drop n . BS.drop n . BS.drop n $ bs
-      dist12 = fromIntegral $ stringEditDistance fstBlock sndBlock
-      dist23 = fromIntegral $ stringEditDistance sndBlock thirdBlock
-      dist34 = fromIntegral $ stringEditDistance thirdBlock fourthBlock
-      dist = (dist12 + dist23 + dist34) / 3.0
+  let
+    sed = fromIntegral $ stringEditDistance bs (BS.drop n bs)
+    len = fromIntegral $ BS.length bs - n
   in
-   (n, dist / fromInteger (fromIntegral n))
+   (n, sed/len)
 
-testGetKeySize :: [(Int, Double)]
-testGetKeySize =
-  getKeySize (2, 40) (bytesXor iceIceBabyFull "abc") -- == 3
+testGetKeySize :: Bytes -> [(Int, Double)]
+testGetKeySize key =
+  getPossibleKeySizes (2, 40) (bytesXor iceIceBabyFull key)
 
 iceIceBabyFull :: Bytes
 iceIceBabyFull = "Yo, VIP, let's kick it!\n\nIce ice baby\nIce ice baby\nAll right stop\nCollaborate and listen\nIce is back with my brand new invention\nSomething grabs a hold of me tightly\nThen I flow that a harpoon daily and nightly\nWill it ever stop?\nYo, I don't know\nTurn off the lights and I'll glow\nTo the extreme I rock a mic like a vandal\nLight up a stage and wax a chump like a candle\n\nDance\nBum rush the speaker that booms\nI'm killin' your brain like a poisonous mushroom\nDeadly, when I play a dope melody\nAnything less that the best is a felony\nLove it or leave it\nYou better gain way\nYou better hit bull's eye\nThe kid don't play\nIf there was a problem\nYo, I'll solve it\nCheck out the hook while my DJ revolves it\n\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\n\nNow that the party is jumping\nWith the bass kicked in, the fingers are pumpin'\nQuick to the point, to the point no faking\nI'm cooking MC's like a pound of bacon\nBurning them if they're not quick and nimble\nI go crazy when I hear a cymbal\nAnd a hi hat with a souped up tempo\nI'm on a roll and it's time to go solo\nRollin in my 5.0\nWith my ragtop down so my hair can blow\nThe girlies on standby\nWaving just to say hi\nDid you stop?\nNo, I just drove by\nKept on pursuing to the next stop\nI busted a left and I'm heading to the next block\nThat block was dead\n\nYo so I continued to a1a Beachfront Ave\nGirls were hot wearing less than bikinis\nRock man lovers driving Lamborghini\nJealous 'cause I'm out getting mine\nShay with a gauge and Vanilla with a nine\nReady for the chumps on the wall\nThe chumps are acting ill because they're so full of eight balls\nGunshots ranged out like a bell\nI grabbed my nine\nAll I heard were shells\nFallin' on the concrete real fast\nJumped in my car, slammed on the gas\nBumper to bumper the avenue's packed\nI'm tryin' to get away before the jackers jack\nPolice on the scene\nYou know what I mean\nThey passed me up, confronted all the dope fiends\nIf there was a problem\nYo, I'll solve it\nCheck out the hook while my DJ revolves it\n\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\n\nTake heed, 'cause I'm a lyrical poet\nMiami's on the scene just in case you didn't know it\nMy town, that created all the bass sound\nEnough to shake and kick holes in the ground\n'Cause my style's like a chemical spill\nFeasible rhymes that you can vision and feel\nConducted and formed\nThis is a hell of a concept\nWe make it hype and you want to step with this\nShay plays on the fade, slice it like a ninja\nCut like a razor blade so fast\nOther DJ's say, 'damn'\nIf my rhyme was a drug\nI'd sell it by the gram\nKeep my composure when it's time to get loose\nMagnetized by the mic while I kick my juice\nIf there was a problem\nYo, I'll solve it!\nCheck out the hook while my DJ revolves it\n\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\nIce ice baby Vanilla\n\nYo man, let's get out of here\nWord to your mother\n\nIce ice baby\nToo cold\nIce ice baby\nToo cold too cold\nIce ice baby\nToo cold too cold\nIce ice baby\nToo cold too cold\n"
